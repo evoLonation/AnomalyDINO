@@ -166,6 +166,46 @@ def get_dataset_info(dataset, preprocess):
             rotation_default = {o: True for o in objects}
         elif preprocess in ["informed", "masking_only", "informed_no_mask"]:
             rotation_default = {o: False for o in objects}
+
+    elif dataset == "Real-IAD":
+        objects = ["audiojack", "bottle_cap", "button_battery", "end_cap", "eraser", "fire_hood", "mint", "mounts", "pcb", "phone_battery", "plastic_nut", "plastic_plug", "porcelain_doll", "regulator", "rolled_strip_base", "sim_card_set", "switch", "tape", "terminalblock", "toothbrush", "toy", "toy_brick", "transistor1", "u_block", "usb", "usb_adaptor", "vcpill", "wooden_beads", "woodstick", "zipper"]
+        
+        object_anomalies = {
+            k: ["bad"] for k in objects
+        }
+        
+        # 根据预处理策略配置掩码和旋转
+        if preprocess in ["informed_no_mask", "agnostic_no_mask"]:
+            masking_default = {o: False for o in objects}
+        else:
+            # 默认启用掩码,可根据实际情况手动调整
+            masking_default = {o: True for o in objects}
+        
+        if preprocess in ["agnostic", "agnostic_no_mask"]:
+            rotation_default = {o: True for o in objects}
+        elif preprocess in ["informed", "masking_only", "informed_no_mask"]:
+            rotation_default = {o: False for o in objects}
+    
+    elif dataset == "Real-IAD-angle":
+        objects = ["audiojack", "bottle_cap", "button_battery", "end_cap", "eraser", "fire_hood", "mint", "mounts", "pcb", "phone_battery", "plastic_nut", "plastic_plug", "porcelain_doll", "regulator", "rolled_strip_base", "sim_card_set", "switch", "tape", "terminalblock", "toothbrush", "toy", "toy_brick", "transistor1", "u_block", "usb", "usb_adaptor", "vcpill", "wooden_beads", "woodstick", "zipper"]
+        objects = [x for sublist in [ [obj + f"_C{i}" for i in range(1, 6)] for obj in objects ] for x in sublist]
+        object_anomalies = {
+            k: ["bad"] for k in objects
+        }
+
+        # 根据预处理策略配置掩码和旋转
+        if preprocess in ["informed_no_mask", "agnostic_no_mask"]:
+            masking_default = {o: False for o in objects}
+        else:
+            # 默认启用掩码,可根据实际情况手动调整
+            masking_default = {o: True for o in objects}
+        
+        if preprocess in ["agnostic", "agnostic_no_mask"]:
+            rotation_default = {o: True for o in objects}
+        elif preprocess in ["informed", "masking_only", "informed_no_mask"]:
+            rotation_default = {o: False for o in objects}
+
+
     else:
         raise ValueError(f"Dataset '{dataset}' not yet covered!")
 

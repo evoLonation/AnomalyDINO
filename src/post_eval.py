@@ -48,13 +48,20 @@ def parse_dataset_files(object_name, dataset_base_dir, anomaly_maps_dir, dataset
         # Get paths to all test images in the dataset for this subdir.
         test_images = [path.splitext(file)[0]
                        for file
-                       in listdir(path.join(test_dir, subdir))
-                       if path.splitext(file)[1] == ('.png' if dataset == "MVTec" else '.JPG')]
+                       in listdir(path.join(test_dir, subdir))]
 
         # If subdir is not 'good', derive corresponding GT names.
         if subdir != 'good':
+            if dataset == "MVTec":
+                suffix = "_mask.png"
+            elif dataset == "VisA":
+                suffix = ".png"
+            elif  "Real-IAD" in dataset:
+                suffix = ".jpg"
+            else:
+                assert False
             gt_filenames.extend(
-                [path.join(gt_base_dir, subdir, file + '_mask.png' if dataset == "MVTec" else file + '.png')
+                [path.join(gt_base_dir, subdir, file + suffix)
                  for file in test_images])
         else:
             # No ground truth maps exist for anomaly-free images.
@@ -412,6 +419,10 @@ def get_objects_from_dataset(dataset):
         objects = ["bottle", "cable", "capsule", "carpet", "grid", "hazelnut", "leather", "metal_nut", "pill", "screw", "tile", "toothbrush", "transistor", "wood", "zipper"]
     elif dataset == "VisA":
         objects = ["candle", "capsules", "cashew", "chewinggum", "fryum", "macaroni1", "macaroni2", "pcb1", "pcb2", "pcb3", "pcb4", "pipe_fryum"]
+    elif "Real-IAD" in dataset:
+        objects = ["audiojack", "bottle_cap", "button_battery", "end_cap", "eraser", "fire_hood", "mint", "mounts", "pcb", "phone_battery", "plastic_nut", "plastic_plug", "porcelain_doll", "regulator", "rolled_strip_base", "sim_card_set", "switch", "tape", "terminalblock", "toothbrush", "toy", "toy_brick", "transistor1", "u_block", "usb", "usb_adaptor", "vcpill", "wooden_beads", "woodstick", "zipper"]
+        if "angle" in dataset:
+            objects = [obj + f"_C{i}" for obj in objects for i in range(1, 6)]
     return objects
     
 

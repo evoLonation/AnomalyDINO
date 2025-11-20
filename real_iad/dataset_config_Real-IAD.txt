@@ -1,0 +1,51 @@
+# Add this code to src/utils.py in the get_dataset_info() function
+# Insert it before the final 'else' clause that raises ValueError
+
+
+    elif dataset == "Real-IAD":
+        objects = ["audiojack", "bottle_cap", "button_battery", "end_cap", "eraser", "fire_hood", "mint", "mounts", "pcb", "phone_battery", "plastic_nut", "plastic_plug", "porcelain_doll", "regulator", "rolled_strip_base", "sim_card_set", "switch", "tape", "terminalblock", "toothbrush", "toy", "toy_brick", "transistor1", "u_block", "usb", "usb_adaptor", "vcpill", "wooden_beads", "woodstick", "zipper"]
+        
+        object_anomalies = {
+            "audiojack": ["BX", "HS", "QS", "ZW"],
+            "bottle_cap": ["AK", "HS", "QS", "ZW"],
+            "button_battery": ["AK", "CH", "HS", "ZW"],
+            "end_cap": ["HS", "PS", "QS", "ZW"],
+            "eraser": ["AK", "HS", "QS", "ZW"],
+            "fire_hood": ["AK", "HS", "QS", "ZW"],
+            "mint": ["QS", "YW", "ZW"],
+            "mounts": ["AK", "QS", "ZW"],
+            "pcb": ["HS", "QS", "YW", "ZW"],
+            "phone_battery": ["AK", "HS", "PS", "ZW"],
+            "plastic_nut": ["AK", "HS", "QS", "ZW"],
+            "plastic_plug": ["AK", "HS", "QS", "ZW"],
+            "porcelain_doll": ["CH", "HS", "ZW"],
+            "regulator": ["AK", "HS", "QS", "ZW"],
+            "rolled_strip_base": ["AK", "QS", "ZW"],
+            "sim_card_set": ["CH", "HS", "ZW"],
+            "switch": ["HS", "QS", "ZW"],
+            "tape": ["HS", "PS", "QS", "ZW"],
+            "terminalblock": ["AK", "QS", "ZW"],
+            "toothbrush": ["CH", "QS", "ZW"],
+            "toy": ["AK", "HS", "QS", "ZW"],
+            "toy_brick": ["AK", "HS", "QS", "ZW"],
+            "transistor1": ["BX", "QS", "ZW"],
+            "u_block": ["CH", "HS", "QS", "ZW"],
+            "usb": ["BX", "HS", "QS", "ZW"],
+            "usb_adaptor": ["AK", "CH", "HS", "ZW"],
+            "vcpill": ["AK", "HS", "QS", "ZW"],
+            "wooden_beads": ["AK", "HS", "QS", "ZW"],
+            "woodstick": ["AK", "HS", "QS", "ZW"],
+            "zipper": ["BX", "PS", "QS", "ZW"]
+        }
+        
+        # 根据预处理策略配置掩码和旋转
+        if preprocess in ["informed_no_mask", "agnostic_no_mask"]:
+            masking_default = {o: False for o in objects}
+        else:
+            # 默认启用掩码,可根据实际情况手动调整
+            masking_default = {o: True for o in objects}
+        
+        if preprocess in ["agnostic", "agnostic_no_mask"]:
+            rotation_default = {o: True for o in objects}
+        elif preprocess in ["informed", "masking_only", "informed_no_mask"]:
+            rotation_default = {o: False for o in objects}

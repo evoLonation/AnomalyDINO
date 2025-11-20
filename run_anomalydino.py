@@ -48,6 +48,7 @@ def parse_args():
     parser.add_argument("--warmup_iters", type=int, default=25, help="Number of warmup iterations, relevant when benchmarking inference time.")
 
     parser.add_argument("--tag", help="Optional tag for the saving directory.")
+    parser.add_argument("--debug", action="store_true", help="Enable debug mode with debugpy.")
 
     args = parser.parse_args()
     return args
@@ -57,6 +58,14 @@ if __name__=="__main__":
 
     args = parse_args()
     
+    if args.debug:
+        import debugpy
+
+        # 监听 5678 端口，并等待调试器客户端连接
+        print("调试服务器正在监听 5678 端口...")
+        debugpy.listen(5678)
+        debugpy.wait_for_client()
+        print("调试器已连接！")
     print(f"Requested to run {len(args.shots)} (different) shot(s):", args.shots)
     print(f"Requested to repeat the experiments {args.num_seeds} time(s).")
 
@@ -106,53 +115,54 @@ if __name__=="__main__":
                 continue
             else:
                 timeit_file = results_dir + "/time_measurements.csv"
-                with open(timeit_file, 'w', newline='') as file:
-                    writer = csv.writer(file)
-                    writer.writerow(["Object", "Sample", "Anomaly_Score", "MemoryBank_Time", "Inference_Time"])
+                if not os.path.exists(timeit_file):
+                    with open(timeit_file, 'w', newline='') as file:
+                        writer = csv.writer(file)
+                        writer.writerow(["Object", "Sample", "Anomaly_Score", "MemoryBank_Time", "Inference_Time"])
 
-                    for object_name in objects:
-                        
-                        if save_examples:
-                            os.makedirs(f"{plots_dir}/{object_name}", exist_ok=True)
-                            os.makedirs(f"{plots_dir}/{object_name}/examples", exist_ok=True)
+                        for object_name in objects:
+                            
+                            if save_examples:
+                                os.makedirs(f"{plots_dir}/{object_name}", exist_ok=True)
+                                os.makedirs(f"{plots_dir}/{object_name}/examples", exist_ok=True)
 
-                        # CUDA warmup
-                        for _ in trange(args.warmup_iters, desc="CUDA warmup", leave=False):
-                            first_image = os.listdir(f"{args.data_root}/{object_name}/train/good")[0]
-                            img_tensor, grid_size = model.prepare_image(f"{args.data_root}/{object_name}/train/good/{first_image}")
-                            features = model.extract_features(img_tensor)
-                                         
-                        anomaly_scores, time_memorybank, time_inference = run_anomaly_detection(
-                                                                                model,
-                                                                                object_name,
-                                                                                data_root = args.data_root, 
-                                                                                n_ref_samples = shot,
-                                                                                object_anomalies = object_anomalies,
-                                                                                plots_dir = plots_dir,
-                                                                                save_examples = save_examples,
-                                                                                knn_metric = args.knn_metric,
-                                                                                knn_neighbors = args.k_neighbors,
-                                                                                faiss_on_cpu = args.faiss_on_cpu,
-                                                                                masking = masking_default[object_name],
-                                                                                mask_ref_images = args.mask_ref_images,
-                                                                                rotation = rotation_default[object_name],
-                                                                                seed = seed,
-                                                                                save_patch_dists = args.eval_clf, # save patch distances for detection evaluation
-                                                                                save_tiffs = args.eval_segm)      # save anomaly maps as tiffs for segmentation evaluation
-                        
-                        # write anomaly scores and inference times to file
-                        for counter, sample in enumerate(anomaly_scores.keys()):
-                            anomaly_score = anomaly_scores[sample]
-                            inference_time = time_inference[sample]
-                            writer.writerow([object_name, sample, f"{anomaly_score:.5f}", f"{time_memorybank:.5f}", f"{inference_time:.5f}"])
-                        # print(f"Mean inference time ({object_name}): {sum(time_inference.values())/len(time_inference):.5f} s/sample")                        
+                            # CUDA warmup
+                            for _ in trange(args.warmup_iters, desc="CUDA warmup", leave=False):
+                                first_image = os.listdir(f"{args.data_root}/{object_name}/train/good")[0]
+                                img_tensor, grid_size = model.prepare_image(f"{args.data_root}/{object_name}/train/good/{first_image}")
+                                features = model.extract_features(img_tensor)
+                                            
+                            anomaly_scores, time_memorybank, time_inference = run_anomaly_detection(
+                                                                                    model,
+                                                                                    object_name,
+                                                                                    data_root = args.data_root, 
+                                                                                    n_ref_samples = shot,
+                                                                                    object_anomalies = object_anomalies,
+                                                                                    plots_dir = plots_dir,
+                                                                                    save_examples = save_examples,
+                                                                                    knn_metric = args.knn_metric,
+                                                                                    knn_neighbors = args.k_neighbors,
+                                                                                    faiss_on_cpu = args.faiss_on_cpu,
+                                                                                    masking = masking_default[object_name],
+                                                                                    mask_ref_images = args.mask_ref_images,
+                                                                                    rotation = rotation_default[object_name],
+                                                                                    seed = seed,
+                                                                                    save_patch_dists = args.eval_clf, # save patch distances for detection evaluation
+                                                                                    save_tiffs = args.eval_segm)      # save anomaly maps as tiffs for segmentation evaluation
+                            
+                            # write anomaly scores and inference times to file
+                            for counter, sample in enumerate(anomaly_scores.keys()):
+                                anomaly_score = anomaly_scores[sample]
+                                inference_time = time_inference[sample]
+                                writer.writerow([object_name, sample, f"{anomaly_score:.5f}", f"{time_memorybank:.5f}", f"{inference_time:.5f}"])
+                            # print(f"Mean inference time ({object_name}): {sum(time_inference.values())/len(time_inference):.5f} s/sample")                        
 
-                # read inference times from file
-                with open(timeit_file, 'r') as file:
-                    reader = csv.reader(file)
-                    next(reader)
-                    inference_times = [float(row[4]) for row in reader]
-                print(f"Finished AD for {len(objects)} objects (seed {seed}), mean inference time: {sum(inference_times)/len(inference_times):.5f} s/sample")
+                    # read inference times from file
+                    with open(timeit_file, 'r') as file:
+                        reader = csv.reader(file)
+                        next(reader)
+                        inference_times = [float(row[4]) for row in reader]
+                    print(f"Finished AD for {len(objects)} objects (seed {seed}), mean inference time: {sum(inference_times)/len(inference_times):.5f} s/sample")
 
                 # evaluate all finished runs and create sample anomaly maps for inspection
                 print(f"=========== Evaluate seed = {seed} ===========")

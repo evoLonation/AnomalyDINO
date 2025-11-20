@@ -109,14 +109,19 @@ def run_anomaly_detection(
         else:
             # similariy search on GPU
             res = faiss.StandardGpuResources()
-            knn_index = faiss.GpuIndexFlatL2(res, features_ref.shape[1])
-            # knn_index = faiss.IndexFlatL2(features_ref.shape[1])
-            # knn_index = faiss.index_cpu_to_gpu(res, int(model.device[-1]), knn_index)
+            # 设置临时内存限制（例如 10GB）
+            res.setTempMemory(10 * 1024 * 1024 * 1024)
+            # knn_index = faiss.GpuIndexFlatL2(res, features_ref.shape[1])
+            knn_index = faiss.IndexFlatL2(features_ref.shape[1])
+            gpu_id = torch.cuda.current_device() if torch.cuda.is_available() else 0
+            knn_index = faiss.index_cpu_to_gpu(res, int(gpu_id), knn_index)
 
 
         if knn_metric == "L2_normalized":
             faiss.normalize_L2(features_ref)
+        print(f"Before knn_index.add(features_ref)...")
         knn_index.add(features_ref)
+        print(f"After knn_index.add(features_ref)...")
 
         # end measuring time (for memory bank set up; in seconds, same for all test samples of this object)
         time_memorybank = time.time() - start_time
@@ -137,7 +142,7 @@ def run_anomaly_detection(
             if save_patch_dists or save_tiffs:
                 os.makedirs(f"{plots_dir}/anomaly_maps/seed={seed}/{object_name}/test/{type_anomaly}", exist_ok=True)
             
-            for idx, img_test_nr in enumerate(sorted(os.listdir(data_dir))):
+            for idx, img_test_nr in tqdm(enumerate(sorted(os.listdir(data_dir)))):
                 # start measuring time (inference)
                 start_time = time.time()
                 image_test_path = f"{data_dir}/{img_test_nr}"
@@ -159,15 +164,59 @@ def run_anomaly_detection(
                 features2 = features2[mask2]
 
                 # Compute distances to nearest neighbors in M
+                # if knn_metric == "L2":
+                #     print(f"Before knn_index.search()...")
+                #     distances, match2to1 = knn_index.search(features2, k = knn_neighbors)
+                #     print(f"After knn_index.search()...")
+                #     if knn_neighbors > 1:
+                #         distances = distances.mean(axis=1)
+                #     distances = np.sqrt(distances)
+
+                # elif knn_metric == "L2_normalized":
+                #     faiss.normalize_L2(features2) 
+                #     print(f"Before knn_index.search()...")
+                #     distances, match2to1 = knn_index.search(features2, k = knn_neighbors)
+                #     print(f"After knn_index.search()...")
+                #     if knn_neighbors > 1:
+                #         distances = distances.mean(axis=1)
+                #     distances = distances / 2   # equivalent to cosine distance (1 - cosine similarity)
                 if knn_metric == "L2":
-                    distances, match2to1 = knn_index.search(features2, k = knn_neighbors)
+                    # 分批搜索以避免 GPU 显存不足
+                    batch_size = 16
+                    distances_list = []
+                    match2to1_list = []
+                    for i in range(0, len(features2), batch_size):
+                        batch = features2[i:i+batch_size]
+                        # print(f"Before knn_index.search() for batch {i//batch_size}...", end="", flush=True)
+                        dist_batch, match_batch = knn_index.search(batch, k=knn_neighbors)
+                        # print("Done.")
+                        distances_list.append(dist_batch)
+                        # match2to1_list.append(match_batch)
+                    # print("After knn_index.search() for all batches...")
+                    distances = np.concatenate(distances_list, axis=0)
+                    # match2to1 = np.concatenate(match2to1_list, axis=0)
+                    
                     if knn_neighbors > 1:
                         distances = distances.mean(axis=1)
                     distances = np.sqrt(distances)
 
                 elif knn_metric == "L2_normalized":
-                    faiss.normalize_L2(features2) 
-                    distances, match2to1 = knn_index.search(features2, k = knn_neighbors)
+                    faiss.normalize_L2(features2)
+                    # 分批搜索以避免 GPU 显存不足
+                    batch_size = 16
+                    distances_list = []
+                    match2to1_list = []
+                    for i in range(0, len(features2), batch_size):
+                        batch = features2[i:i+batch_size]
+                        # print(f"Before knn_index.search() for batch {i//batch_size}...", end="", flush=True)
+                        dist_batch, match_batch = knn_index.search(batch, k=knn_neighbors)
+                        # print("Done.")
+                        distances_list.append(dist_batch)
+                        # match2to1_list.append(match_batch)
+                    # print("After knn_index.search() for all batches...")
+                    distances = np.concatenate(distances_list, axis=0)
+                    # match2to1 = np.concatenate(match2to1_list, axis=0)
+                    
                     if knn_neighbors > 1:
                         distances = distances.mean(axis=1)
                     distances = distances / 2   # equivalent to cosine distance (1 - cosine similarity)
