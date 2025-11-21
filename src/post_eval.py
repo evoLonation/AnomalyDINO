@@ -57,7 +57,7 @@ def parse_dataset_files(object_name, dataset_base_dir, anomaly_maps_dir, dataset
             elif dataset == "VisA":
                 suffix = ".png"
             elif  "Real-IAD" in dataset:
-                suffix = ".jpg"
+                suffix = ".png"
             else:
                 assert False
             gt_filenames.extend(
